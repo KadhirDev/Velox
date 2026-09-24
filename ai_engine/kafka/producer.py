@@ -1,5 +1,4 @@
 # FULL ORIGINAL FILE WITH SAFE PATCHES APPLIED
-
 from __future__ import annotations
 
 import json
@@ -21,10 +20,10 @@ except ImportError:
 Producer = KafkaProducer
 
 TOPICS = {
-    "decisions": "cloudos.scheduling.decisions",
-    "metrics": "cloudos.metrics",
-    "alerts": "cloudos.alerts",
-    "workloads": "cloudos.workload.events",
+    "decisions": "velox.scheduling.decisions",
+    "metrics": "velox.metrics",
+    "alerts": "velox.alerts",
+    "workloads": "velox.workload.events",
 }
 
 _REQUIRED_DECISION_FIELDS = frozenset(
@@ -34,9 +33,9 @@ _REQUIRED_DECISION_FIELDS = frozenset(
 _FLUSH_INTERVAL_SEC = 5
 
 
-class CloudOSProducer:
+class VeloxProducer:
     """
-    Thread-safe Kafka producer for CloudOS-RL.
+    Thread-safe Kafka producer for Velox.
 
     Goals:
     - Never break API inference flow if Kafka is unavailable
@@ -62,7 +61,7 @@ class CloudOSProducer:
         if bootstrap_servers:
             self._servers = bootstrap_servers
             logger.info(
-                "CloudOSProducer: bootstrap_servers=%s (source: explicit argument)",
+                "VeloxProducer: bootstrap_servers=%s (source: explicit argument)",
                 self._servers,
             )
         else:
@@ -75,10 +74,14 @@ class CloudOSProducer:
 
         self._producer = None
 
-        logger.info("CloudOSProducer: bootstrap_servers=%s", self._servers)
+        logger.info("VeloxProducer: bootstrap_servers=%s", self._servers if self._servers else "disabled")
 
-        self._connect()
-        self._ensure_topics()
+        # Only connect if we have valid servers
+        if self._servers:
+            self._connect()
+            self._ensure_topics()
+        else:
+            logger.info("Kafka disabled — no bootstrap servers configured")
 
         self._flush_thread = threading.Thread(
             target=self._flush_loop,
@@ -107,30 +110,29 @@ class CloudOSProducer:
         for source_name, candidate in sources:
             if not candidate:
                 logger.debug(
-                    "KafkaProducer._resolve_bootstrap: %s is empty — skipping",
+                    "VeloxProducer._resolve_bootstrap: %s is empty — skipping",
                     source_name,
                 )
                 continue
 
             lowered = candidate.lower()
-            if "localhost" in lowered or "127.0.0.1" in lowered:
+            if "localhost" in lowered or "127.0.0.1" in lowered or "192.168." in lowered or "10." in lowered or "172.16." in lowered:
                 logger.warning(
-                    "KafkaProducer._resolve_bootstrap: %s='%s' contains localhost — skipping",
+                    "VeloxProducer._resolve_bootstrap: %s='%s' contains private/local IP — skipping",
                     source_name,
                     candidate,
                 )
                 continue
 
             logger.info(
-                "KafkaProducer: bootstrap_servers=%s (source: %s)",
+                "VeloxProducer: bootstrap_servers=%s (source: %s)",
                 candidate,
                 source_name,
             )
             return candidate
 
-        fallback = "192.168.49.1:9092"
-        logger.warning("KafkaProducer: fallback bootstrap %s", fallback)
-        return fallback
+        logger.info("VeloxProducer: no valid bootstrap servers found — Kafka disabled")
+        return ""
 
     def _connect(self) -> None:
         if Producer is None:
@@ -138,11 +140,16 @@ class CloudOSProducer:
             self._producer = None
             return
 
+        if not self._servers:
+            logger.info("Kafka disabled — no valid bootstrap servers configured")
+            self._producer = None
+            return
+
         try:
             producer = Producer(
                 {
                     "bootstrap.servers": self._servers,
-                    "client.id": "cloudos-producer",
+                    "client.id": "velox-producer",
                     "acks": "all",
                     "retries": 3,
                     "retry.backoff.ms": 500,
@@ -180,6 +187,10 @@ class CloudOSProducer:
         with self._lock:
             if self._producer is not None:
                 return True
+
+        # Don't attempt reconnect if Kafka is disabled
+        if not self._servers:
+            return False
 
         logger.info("Kafka reconnect attempt")
         self._connect()

@@ -181,9 +181,9 @@ def _initialise() -> None:
     # Step 3: Kafka producer
     # -------------------------------------------------------------------
     try:
-        from ai_engine.kafka.producer import CloudOSProducer
+        from ai_engine.kafka.producer import VeloxProducer
 
-        producer = CloudOSProducer(config)
+        producer = VeloxProducer(config)
 
         with _lock:
             _producer = producer
