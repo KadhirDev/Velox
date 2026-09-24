@@ -1,163 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from './AuthContext'
 import { register as apiRegister } from '../api/client'
-import { Zap, Loader, Eye, EyeOff, ArrowRight, UserPlus, LogIn, Globe } from 'lucide-react'
-
-function ParticleCanvas({ mousePos }) {
-  const canvasRef = useRef(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    let animationFrameId = 0
-
-    const resize = () => {
-      const rect = canvas.parentElement?.getBoundingClientRect()
-      if (rect) {
-        canvas.width = rect.width * window.devicePixelRatio
-        canvas.height = rect.height * window.devicePixelRatio
-        ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
-      }
-    }
-    resize()
-    window.addEventListener('resize', resize)
-
-    const particles = Array.from({ length: 60 }, () => ({
-      x: Math.random() * (canvas.parentElement?.clientWidth || window.innerWidth),
-      y: Math.random() * (canvas.parentElement?.clientHeight || window.innerHeight),
-      r: Math.random() * 1.5 + 0.3,
-      vx: (Math.random() - 0.5) * 0.25,
-      vy: (Math.random() - 0.5) * 0.25,
-      alpha: Math.random() * 0.4 + 0.1,
-    }))
-
-    const draw = () => {
-      const width = canvas.parentElement?.clientWidth || window.innerWidth
-      const height = canvas.parentElement?.clientHeight || window.innerHeight
-      ctx.clearRect(0, 0, width, height)
-
-      const mouse = mousePos.current
-
-      particles.forEach((p) => {
-        const dx = p.x - mouse.x
-        const dy = p.y - mouse.y
-        const dist = Math.sqrt(dx * dx + dy * dy)
-        if (dist < 100 && mouse.x > 0) {
-          const force = (100 - dist) / 100
-          p.vx += (dx / dist) * force * 0.03
-          p.vy += (dy / dist) * force * 0.03
-        }
-        p.vx *= 0.985
-        p.vy *= 0.985
-        p.x += p.vx
-        p.y += p.vy
-        if (p.x < 0) p.x = width
-        if (p.x > width) p.x = 0
-        if (p.y < 0) p.y = height
-        if (p.y > height) p.y = 0
-      })
-
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x
-          const dy = particles[i].y - particles[j].y
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 100) {
-            ctx.beginPath()
-            ctx.strokeStyle = `rgba(99,102,241,${0.1 * (1 - dist / 100)})`
-            ctx.lineWidth = 0.5
-            ctx.moveTo(particles[i].x, particles[i].y)
-            ctx.lineTo(particles[j].x, particles[j].y)
-            ctx.stroke()
-          }
-        }
-      }
-
-      particles.forEach((p) => {
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(139,92,246,${p.alpha})`
-        ctx.fill()
-      })
-
-      animationFrameId = requestAnimationFrame(draw)
-    }
-
-    draw()
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-      window.removeEventListener('resize', resize)
-    }
-  }, [mousePos])
-
-  return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}
-    />
-  )
-}
-
-function StatCard({ value, label, icon: Icon, color, delay }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 12,
-        padding: '16px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        minWidth: 180,
-      }}
-    >
-      <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}20`, border: `1px solid ${color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Icon size={18} color={color} />
-      </div>
-      <div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>{value}</div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-      </div>
-    </motion.div>
-  )
-}
-
-function ScrollingTicker({ items }) {
-  const [offset, setOffset] = useState(0)
-  const ref = useRef(null)
-
-  useEffect(() => {
-    let animationFrameId
-    const width = ref.current?.scrollWidth || 0
-    const animate = () => {
-      setOffset((prev) => (prev >= width ? -window.innerWidth : prev + 0.5))
-      animationFrameId = requestAnimationFrame(animate)
-    }
-    animationFrameId = requestAnimationFrame(animate)
-    return () => cancelAnimationFrame(animationFrameId)
-  }, [])
-
-  return (
-    <div style={{ overflow: 'hidden', width: '100%', position: 'relative', maskImage: 'linear-gradient(90deg, transparent, black 10%, black 90%, transparent)' }}>
-      <div ref={ref} style={{ display: 'flex', gap: 32, whiteSpace: 'nowrap', transform: `translateX(${offset}px)`, willChange: 'transform' }}>
-        {items.map((item, i) => (
-          <span key={i} style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontWeight: 500, letterSpacing: '0.02em' }}>{item}</span>
-        ))}
-        {items.map((item, i) => (
-          <span key={i + items.length} style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontWeight: 500, letterSpacing: '0.02em' }}>{item}</span>
-        ))}
-      </div>
-    </div>
-  )
-}
+import { Zap, Loader, Eye, EyeOff, ArrowRight, UserPlus, LogIn } from 'lucide-react'
 
 function InputField({ label, type = 'text', value, onChange, onKeyDown, placeholder, autoFocus, autoComplete, rightSlot }) {
   const [focused, setFocused] = useState(false)
@@ -215,21 +60,12 @@ export default function LoginPage() {
   const [success, setSuccess] = useState(null)
   const [loading, setLoading] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const mousePos = useRef({ x: -999, y: -999 })
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-
-  useEffect(() => {
-    const onMouseMove = (e) => {
-      mousePos.current = { x: e.clientX, y: e.clientY }
-    }
-    window.addEventListener('mousemove', onMouseMove)
-    return () => window.removeEventListener('mousemove', onMouseMove)
   }, [])
 
   const updateField = (key, value) => {
@@ -291,8 +127,6 @@ export default function LoginPage() {
     console.log('Google OAuth coming soon')
   }
 
-  const techKeywords = ['PPO', 'SHAP', 'Kafka', 'Kubernetes', 'FastAPI', 'PyTorch', 'Reinforcement Learning', 'Carbon-Aware', 'Multi-Cloud']
-
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', background: 'var(--bg)',
@@ -303,84 +137,260 @@ export default function LoginPage() {
           initial={{ opacity: 0, x: -40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          onMouseMove={(e) => {
+            if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+            const r = e.currentTarget.getBoundingClientRect()
+            const px = (e.clientX - r.left) / r.width - 0.5
+            const py = (e.clientY - r.top) / r.height - 0.5
+            e.currentTarget.style.setProperty('--px', px.toFixed(3))
+            e.currentTarget.style.setProperty('--py', py.toFixed(3))
+          }}
           style={{
             width: '55%', height: '100vh', position: 'fixed', left: 0, top: 0, zIndex: 1,
-            background: 'linear-gradient(135deg, #0a0f1e 0%, #0d1b2e 50%, #0a0f1e 100%)',
+            background: 'linear-gradient(135deg, #070b16 0%, #0a1226 45%, #0b1030 75%, #070b16 100%)',
             display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
-            padding: '60px 80px', overflow: 'hidden',
+            padding: '48px 64px', overflow: 'hidden',
           }}
         >
-          <ParticleCanvas mousePos={mousePos} />
+          {/* ── Space/cloud atmosphere layers (pure CSS, no canvas) ── */}
+          <div aria-hidden="true" className="vlx-storm-bg" />
+          <div aria-hidden="true" className="vlx-storm-glow" />
+          <div aria-hidden="true" className="vlx-haze" />
+          <div aria-hidden="true" className="vlx-stars">
+            <span style={{ left: '8%', top: '12%' }} />
+            <span style={{ left: '18%', top: '68%' }} />
+            <span style={{ left: '12%', top: '42%', animationDelay: '1.2s' }} />
+            <span style={{ left: '28%', top: '22%', animationDelay: '2.1s' }} />
+            <span style={{ left: '72%', top: '14%', animationDelay: '0.6s' }} />
+            <span style={{ left: '84%', top: '58%', animationDelay: '1.8s' }} />
+            <span style={{ left: '90%', top: '30%' }} />
+            <span style={{ left: '64%', top: '78%', animationDelay: '2.6s' }} />
+            <span style={{ left: '42%', top: '8%', animationDelay: '0.9s' }} />
+            <span style={{ left: '55%', top: '88%' }} />
+            <span style={{ left: '36%', top: '82%', animationDelay: '1.5s' }} />
+            <span style={{ left: '78%', top: '84%', animationDelay: '2.9s' }} />
+          </div>
 
           <motion.div
-            style={{ position: 'relative', zIndex: 2, maxWidth: 520, width: '100%' }}
+            style={{ position: 'relative', zIndex: 2, maxWidth: 560, width: '100%' }}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           >
-            <motion.div
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 24 }}
-              animate={{ boxShadow: ['0 0 30px rgba(99,102,241,0.2)', '0 0 60px rgba(99,102,241,0.4)', '0 0 30px rgba(99,102,241,0.2)'] }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <motion.div
-                animate={{ rotate: [0, 5, -5, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            {/* Brand — upper-left */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <div
                 style={{
-                  width: 56, height: 56, borderRadius: 14,
+                  width: 44, height: 44, borderRadius: 12,
                   background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 0 28px rgba(99,102,241,0.45)',
                 }}
               >
-                <Zap size={28} color="#fff" />
-              </motion.div>
-              <motion.h1
-                style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.03em', background: 'linear-gradient(135deg, #fff, #e0e7ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
-                animate={{ textShadow: ['0 0 0px transparent', '0 0 30px rgba(99,102,241,0.5)', '0 0 0px transparent'] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-              >
+                <Zap size={22} color="#fff" />
+              </div>
+              <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.03em', background: 'linear-gradient(135deg, #fff, #e0e7ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 Velox
-              </motion.h1>
-            </motion.div>
+              </span>
+            </div>
 
-            <motion.p
-              style={{ textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 16, fontWeight: 400, letterSpacing: '0.01em', marginBottom: 48 }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35, duration: 0.5 }}
-            >
-              Multi-Cloud Workload Scheduler
-            </motion.p>
+            <p style={{ color: 'rgba(165,180,252,0.85)', fontSize: 11, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 12 }}>
+              Cloud Orchestration
+            </p>
 
-            <motion.div
-              style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 48 }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.5 }}
-            >
-              <StatCard value="2M+" label="Training Steps" icon={Zap} color="#6366f1" delay={0.55} />
-              <StatCard value="3 Clouds" label="AWS · Azure · GCP" icon={Globe} color="#10b981" delay={0.62} />
-              <StatCard value="~35ms" label="Avg Inference" icon={Loader} color="#f59e0b" delay={0.69} />
-            </motion.div>
+            <h2 style={{ fontSize: 40, lineHeight: 1.12, fontWeight: 800, letterSpacing: '-0.02em', color: '#fff', margin: '0 0 12px' }}>
+              Smarter <span style={{ color: '#fff' }}>Decisions.</span>
+              <br />
+              Lower <span style={{ background: 'linear-gradient(135deg, #a78bfa, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Costs.</span>
+              <br />
+              <span style={{ background: 'linear-gradient(135deg, #67e8f9, #34d399)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Greener Cloud.</span>
+            </h2>
 
-            <motion.div
-              style={{ marginBottom: 32 }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8, duration: 0.5 }}
-            >
-              <ScrollingTicker items={techKeywords} />
-            </motion.div>
+            {/* ── HERO: orbital cloud mesh ── */}
+            <div className="vlx-hero" style={{ position: 'relative', width: '100%', margin: '6px 0 2px' }}>
+              <svg viewBox="0 0 560 360" width="100%" height="340" role="img" aria-label="Velox intelligence core orchestrating workloads across orbiting AWS, Azure and GCP nodes" style={{ display: 'block', overflow: 'visible' }}>
+                <defs>
+                  <radialGradient id="vlxCoreAura" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#818cf8" stopOpacity="0.5" />
+                    <stop offset="45%" stopColor="#6366f1" stopOpacity="0.22" />
+                    <stop offset="75%" stopColor="#3b82f6" stopOpacity="0.08" />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                  </radialGradient>
+                  <linearGradient id="vlxRing" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#a5b4fc" stopOpacity="0.55" />
+                    <stop offset="50%" stopColor="#6366f1" stopOpacity="0.18" />
+                    <stop offset="100%" stopColor="#67e8f9" stopOpacity="0.45" />
+                  </linearGradient>
+                  <linearGradient id="vlxLine" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#c7d2fe" stopOpacity="0.85" />
+                    <stop offset="100%" stopColor="#6366f1" stopOpacity="0.25" />
+                  </linearGradient>
+                  <linearGradient id="vlxGcp" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#4285F4" />
+                    <stop offset="38%" stopColor="#EA4335" />
+                    <stop offset="68%" stopColor="#FBBC05" />
+                    <stop offset="100%" stopColor="#34A853" />
+                  </linearGradient>
+                </defs>
 
-            <motion.p
-              style={{ textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: 12, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase' }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1, duration: 0.5 }}
-            >
-              Built with Reinforcement Learning
-            </motion.p>
+                {/* faint static orbital traces */}
+                <g fill="none" opacity="0.35">
+                  <ellipse cx="280" cy="182" rx="238" ry="62" stroke="#4c5a8a" strokeOpacity="0.35" strokeWidth="1" />
+                  <ellipse cx="280" cy="182" rx="120" ry="128" stroke="#4c5a8a" strokeOpacity="0.22" strokeWidth="1" />
+                </g>
+
+                {/* slow-rotating orbital rings */}
+                <g fill="none" className="vlx-ring-rot-a">
+                  <ellipse cx="280" cy="182" rx="205" ry="80" transform="rotate(-10 280 182)" stroke="url(#vlxRing)" strokeWidth="1.2" opacity="0.6" />
+                </g>
+                <g fill="none" className="vlx-ring-rot-b">
+                  <ellipse cx="280" cy="182" rx="160" ry="110" transform="rotate(14 280 182)" stroke="url(#vlxRing)" strokeWidth="1" opacity="0.45" />
+                </g>
+
+                {/* data connections: core -> providers */}
+                <g fill="none" strokeWidth="1.5">
+                  <path d="M274 128 Q264 100 276 82" stroke="url(#vlxLine)" opacity="0.6" className="vlx-dash" />
+                  <path d="M242 208 Q192 238 154 266" stroke="url(#vlxLine)" opacity="0.6" className="vlx-dash" />
+                  <path d="M318 208 Q368 238 406 266" stroke="url(#vlxLine)" opacity="0.6" className="vlx-dash" />
+                </g>
+
+                {/* travelling particles: core -> cloud, plus feedback returns */}
+                <g className="vlx-particle">
+                  <circle r="3" fill="#c7d2fe">
+                    <animateMotion dur="3s" repeatCount="indefinite" path="M274 128 Q264 100 276 82" />
+                  </circle>
+                  <circle r="2.4" fill="#818cf8">
+                    <animateMotion dur="4.2s" begin="1.1s" repeatCount="indefinite" calcMode="linear" keyPoints="1;0" keyTimes="0;1" path="M274 128 Q264 100 276 82" />
+                  </circle>
+                  <circle r="3" fill="#a5b4fc">
+                    <animateMotion dur="3.6s" begin="0.5s" repeatCount="indefinite" path="M242 208 Q192 238 154 266" />
+                  </circle>
+                  <circle r="2.4" fill="#818cf8">
+                    <animateMotion dur="5s" begin="2s" repeatCount="indefinite" calcMode="linear" keyPoints="1;0" keyTimes="0;1" path="M242 208 Q192 238 154 266" />
+                  </circle>
+                  <circle r="3" fill="#67e8f9">
+                    <animateMotion dur="3.3s" begin="1.4s" repeatCount="indefinite" path="M318 208 Q368 238 406 266" />
+                  </circle>
+                  <circle r="2.4" fill="#818cf8">
+                    <animateMotion dur="4.6s" begin="0.3s" repeatCount="indefinite" calcMode="linear" keyPoints="1;0" keyTimes="0;1" path="M318 208 Q368 238 406 266" />
+                  </circle>
+                </g>
+
+                {/* central Velox intelligence core (parallax layer 1) */}
+                <g className="vlx-px-core">
+                  <g className="vlx-corefloat">
+                    <circle cx="280" cy="180" r="88" fill="url(#vlxCoreAura)" className="vlx-corebreath" />
+                    <circle cx="280" cy="180" r="62" fill="rgba(32,44,82,0.55)" stroke="rgba(148,163,255,0.35)" strokeWidth="1.2" />
+                    <circle cx="280" cy="180" r="62" fill="none" stroke="rgba(165,180,252,0.2)" strokeWidth="5" className="vlx-pulse" />
+                    <circle cx="280" cy="180" r="44" fill="#232f5c" stroke="rgba(199,210,254,0.5)" strokeWidth="1.2" />
+                    <ellipse cx="264" cy="164" rx="18" ry="10" fill="rgba(199,210,254,0.18)" />
+                    <path d="M287 158 L271 186 L282 186 L276 204 L293 174 L284 174 Z" fill="#ffffff" className="vlx-corebolt" />
+                    <text x="280" y="252" textAnchor="middle" fill="#e0e7ff" fontSize="13" letterSpacing="5" fontWeight="800">VELOX</text>
+                  </g>
+                </g>
+
+                {/* orbiting provider satellites (parallax layer 2) */}
+                <g className="vlx-px-nodes">
+                  <g className="vlx-sat-a">
+                    <circle cx="280" cy="52" r="36" fill="none" stroke="#f59e0b" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="4 6" className="vlx-sat-ring" />
+                    <circle cx="280" cy="52" r="22" fill="#141c33" stroke="#f59e0b" strokeOpacity="0.7" strokeWidth="1.5" />
+                    <circle cx="280" cy="52" r="22" fill="none" stroke="#f59e0b" strokeOpacity="0.25" strokeWidth="5" className="vlx-pulse" />
+                    <circle cx="280" cy="52" r="6.5" fill="#f59e0b" />
+                    <text x="280" y="102" textAnchor="middle" fill="rgba(255,255,255,0.65)" fontSize="11" letterSpacing="2" fontWeight="700">AWS</text>
+                  </g>
+                  <g className="vlx-sat-b">
+                    <circle cx="140" cy="280" r="36" fill="none" stroke="#3b82f6" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="4 6" className="vlx-sat-ring" />
+                    <circle cx="140" cy="280" r="22" fill="#141c33" stroke="#3b82f6" strokeOpacity="0.7" strokeWidth="1.5" />
+                    <circle cx="140" cy="280" r="22" fill="none" stroke="#3b82f6" strokeOpacity="0.25" strokeWidth="5" className="vlx-pulse" />
+                    <circle cx="140" cy="280" r="6.5" fill="#3b82f6" />
+                    <text x="140" y="330" textAnchor="middle" fill="rgba(255,255,255,0.65)" fontSize="11" letterSpacing="2" fontWeight="700">AZURE</text>
+                  </g>
+                  <g className="vlx-sat-c">
+                    <circle cx="420" cy="280" r="36" fill="none" stroke="#34A853" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="4 6" className="vlx-sat-ring" />
+                    <circle cx="420" cy="280" r="22" fill="#141c33" stroke="url(#vlxGcp)" strokeOpacity="0.85" strokeWidth="1.5" />
+                    <circle cx="420" cy="280" r="22" fill="none" stroke="#34A853" strokeOpacity="0.22" strokeWidth="5" className="vlx-pulse" />
+                    <circle cx="413" cy="276" r="3.6" fill="#4285F4" />
+                    <circle cx="420" cy="275" r="3.6" fill="#EA4335" />
+                    <circle cx="426" cy="281" r="3.6" fill="#FBBC05" />
+                    <circle cx="417" cy="284" r="3.6" fill="#34A853" />
+                    <text x="420" y="330" textAnchor="middle" fill="rgba(255,255,255,0.65)" fontSize="11" letterSpacing="2" fontWeight="700">GCP</text>
+                  </g>
+                </g>
+
+                {/* decorative micro-labels + ambient dust */}
+                <g className="vlx-micro" fontSize="8.5" letterSpacing="2.5" fontWeight="600" fill="rgba(199,210,254,0.32)">
+                  <text x="66" y="150">OPTIMIZE</text>
+                  <text x="474" y="150">SCHEDULE</text>
+                  <text x="58" y="238">ANALYZE</text>
+                  <text x="492" y="238">DEPLOY</text>
+                </g>
+                <g fill="rgba(199,210,254,0.5)" className="vlx-dust">
+                  <circle cx="200" cy="120" r="1.4" />
+                  <circle cx="372" cy="110" r="1.2" />
+                  <circle cx="408" cy="180" r="1.6" />
+                  <circle cx="152" cy="180" r="1.6" />
+                  <circle cx="238" cy="292" r="1.3" />
+                  <circle cx="330" cy="296" r="1.3" />
+                </g>
+              </svg>
+            </div>
+
           </motion.div>
+
+          {/* ── Left-panel animation stylesheet (transform/opacity only) ── */}
+          <style>{`
+            .vlx-storm-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none;
+              background:
+                radial-gradient(900px 480px at 50% 32%, rgba(99,102,241,0.15), transparent 65%),
+                radial-gradient(700px 420px at 18% 82%, rgba(59,130,246,0.10), transparent 65%),
+                radial-gradient(720px 420px at 86% 76%, rgba(168,85,247,0.09), transparent 65%),
+                radial-gradient(500px 300px at 50% 55%, rgba(34,211,238,0.05), transparent 70%);
+            }
+            .vlx-storm-glow { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5;
+              background: radial-gradient(440px 250px at 50% 46%, rgba(129,140,248,0.17), transparent 70%);
+              animation: vlxBreathe 7s ease-in-out infinite;
+            }
+            .vlx-haze { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.6;
+              background: radial-gradient(620px 200px at 50% 62%, rgba(99,102,241,0.07), transparent 70%);
+            }
+            .vlx-stars { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+            .vlx-stars span { position: absolute; width: 2px; height: 2px; border-radius: 50%;
+              background: rgba(199,210,254,0.8); opacity: 0.25; animation: vlxTwinkle 5s ease-in-out infinite; }
+            .vlx-corefloat { transform-box: fill-box; transform-origin: center;
+              filter: drop-shadow(0 0 28px rgba(99,102,241,0.5));
+              animation: vlxCoreFloat 10s ease-in-out infinite; }
+            .vlx-corebreath { animation: vlxBreathe 6s ease-in-out infinite; }
+            .vlx-corebolt { filter: drop-shadow(0 0 8px rgba(255,255,255,0.9)); }
+            .vlx-ring-rot-a { transform-origin: 280px 182px; animation: vlxSpin 80s linear infinite; }
+            .vlx-ring-rot-b { transform-origin: 280px 182px; animation: vlxSpinRev 120s linear infinite; }
+            .vlx-sat-a { transform-box: fill-box; transform-origin: center; animation: vlxSatA 7.5s ease-in-out infinite; }
+            .vlx-sat-b { transform-box: fill-box; transform-origin: center; animation: vlxSatB 9s ease-in-out infinite; }
+            .vlx-sat-c { transform-box: fill-box; transform-origin: center; animation: vlxSatA 10.5s ease-in-out infinite reverse; }
+            .vlx-sat-ring { animation: vlxDashSlow 14s linear infinite; }
+            .vlx-pulse { transform-box: fill-box; transform-origin: center; animation: vlxPulse 3.6s ease-in-out infinite; }
+            .vlx-dash { stroke-dasharray: 5 7; animation: vlxDash 2.8s linear infinite; }
+            .vlx-micro { animation: vlxTwinkle 7s ease-in-out infinite; }
+            .vlx-dust { animation: vlxTwinkle 6s ease-in-out infinite; }
+            .vlx-px-core { transform: translate3d(calc(var(--px, 0) * 12px), calc(var(--py, 0) * 9px), 0); }
+            .vlx-px-nodes { transform: translate3d(calc(var(--px, 0) * -8px), calc(var(--py, 0) * -6px), 0); }
+            @keyframes vlxSpin { to { transform: rotate(360deg); } }
+            @keyframes vlxSpinRev { to { transform: rotate(-360deg); } }
+            @keyframes vlxCoreFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+            @keyframes vlxSatA { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+            @keyframes vlxSatB { 0%,100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+            @keyframes vlxBreathe { 0%,100% { opacity: 0.65; } 50% { opacity: 1; } }
+            @keyframes vlxPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+            @keyframes vlxTwinkle { 0%,100% { opacity: 0.12; } 50% { opacity: 0.5; } }
+            @keyframes vlxDash { to { stroke-dashoffset: -24; } }
+            @keyframes vlxDashSlow { to { stroke-dashoffset: -100; } }
+            @media (prefers-reduced-motion: reduce) {
+              .vlx-corefloat, .vlx-corebreath, .vlx-ring-rot-a, .vlx-ring-rot-b,
+              .vlx-sat-a, .vlx-sat-b, .vlx-sat-c, .vlx-sat-ring, .vlx-pulse,
+              .vlx-dash, .vlx-micro, .vlx-dust, .vlx-stars span, .vlx-storm-glow { animation: none !important; }
+              .vlx-particle { display: none; }
+              .vlx-px-core, .vlx-px-nodes { transform: none; }
+            }
+          `}</style>
         </motion.aside>
       )}
 
@@ -402,24 +412,6 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
-          <motion.div
-            style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}
-            whileHover={{ scale: 1.02 }}
-          >
-            <motion.div
-              animate={{ boxShadow: ['0 4px 20px rgba(99,102,241,0.3)', '0 4px 30px rgba(99,102,241,0.5)', '0 4px 20px rgba(99,102,241,0.3)'] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-              style={{
-                width: 36, height: 36, borderRadius: 10,
-                background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <Zap size={18} color="#fff" />
-            </motion.div>
-            <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em' }}>Velox</span>
-          </motion.div>
-
           {/* Tab switcher */}
           <div style={{
             display: 'flex', background: 'var(--surface2)',
