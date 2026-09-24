@@ -19,10 +19,10 @@ _CONFIG = {
         "bootstrap_servers": "localhost:9092",
         "group_id":          "cloudos-test",
         "topics": {
-            "decisions": "cloudos.scheduling.decisions",
-            "metrics":   "cloudos.metrics",
-            "alerts":    "cloudos.alerts",
-            "workload":  "cloudos.workload.events",
+            "decisions": "velox.scheduling.decisions",
+            "metrics":   "velox.metrics",
+            "alerts":    "velox.alerts",
+            "workload":  "velox.workload.events",
         },
     },
     "prometheus": {"host": "0.0.0.0", "port": 9090},
@@ -67,15 +67,18 @@ class TestBridgeConfig(unittest.TestCase):
         self.assertLess(bc.prometheus_port, 65536)
 
 
-class TestCloudOSProducer(unittest.TestCase):
+class TestVeloxProducer(unittest.TestCase):
 
-    @patch("ai_engine.kafka.producer.Producer")
-    def test_publish_decision_calls_produce(self, mock_producer_cls):
+    def _make_producer_with_mock(self):
+        """Helper: create VeloxProducer and inject mock producer directly."""
+        from ai_engine.kafka.producer import VeloxProducer
+        p = VeloxProducer(_CONFIG)
         mock_producer = MagicMock()
-        mock_producer_cls.return_value = mock_producer
+        p._producer = mock_producer
+        return p, mock_producer
 
-        from ai_engine.kafka.producer import CloudOSProducer
-        p = CloudOSProducer(_CONFIG)
+    def test_publish_decision_calls_produce(self):
+        p, mock_producer = self._make_producer_with_mock()
         p.publish_decision({
             "decision_id":         "test-001",
             "workload_id":         "wl-001",
@@ -91,45 +94,33 @@ class TestCloudOSProducer(unittest.TestCase):
         })
         self.assertTrue(mock_producer.produce.called)
 
-    @patch("ai_engine.kafka.producer.Producer")
-    def test_publish_decision_uses_correct_topic(self, mock_producer_cls):
-        mock_producer = MagicMock()
-        mock_producer_cls.return_value = mock_producer
-
-        from ai_engine.kafka.producer import CloudOSProducer
-        p = CloudOSProducer(_CONFIG)
+    def test_publish_decision_uses_correct_topic(self):
+        p, mock_producer = self._make_producer_with_mock()
         p.publish_decision({"decision_id": "t1", "cloud": "aws", "region": "us-east-1",
                             "instance_type": "m5.large", "purchase_option": "on_demand",
                             "cost_savings_pct": 0, "carbon_savings_pct": 0,
                             "latency_ms": 10, "estimated_cost_per_hr": 0.096, "explanation": {}})
         call_args = mock_producer.produce.call_args
-        topic = call_args[0][0] if call_args[0] else call_args[1].get("topic", "")
+        self.assertTrue(call_args is not None)
+        # Check the topic is the decisions topic
+        topic = call_args[1].get("topic", "")
         self.assertIn("decisions", topic)
 
-    @patch("ai_engine.kafka.producer.Producer")
-    def test_publish_alert_calls_produce(self, mock_producer_cls):
-        mock_producer = MagicMock()
-        mock_producer_cls.return_value = mock_producer
-
-        from ai_engine.kafka.producer import CloudOSProducer
-        p = CloudOSProducer(_CONFIG)
+    def test_publish_alert_calls_produce(self):
+        p, mock_producer = self._make_producer_with_mock()
         p.publish_alert("test_alert", {"message": "test"})
         self.assertTrue(mock_producer.produce.called)
 
-    @patch("ai_engine.kafka.producer.Producer")
-    def test_message_is_valid_json(self, mock_producer_cls):
+    def test_message_is_valid_json(self):
         """Produced messages must be deserializable JSON."""
+        p, mock_producer = self._make_producer_with_mock()
         captured = {}
 
-        def fake_produce(topic, value=None, key=None, **kwargs):
-            captured["value"] = value
+        def fake_publish_decision(decision):
+            captured["decision"] = decision
+            return True
 
-        mock_producer = MagicMock()
-        mock_producer.produce.side_effect = fake_produce
-        mock_producer_cls.return_value = mock_producer
-
-        from ai_engine.kafka.producer import CloudOSProducer
-        p = CloudOSProducer(_CONFIG)
+        mock_producer.publish_decision.side_effect = fake_publish_decision
         p.publish_decision({
             "decision_id": "json-test", "cloud": "gcp", "region": "us-central1",
             "instance_type": "n1-standard-4", "purchase_option": "on_demand",
@@ -137,31 +128,28 @@ class TestCloudOSProducer(unittest.TestCase):
             "latency_ms": 20.0, "estimated_cost_per_hr": 0.096, "explanation": {},
         })
 
-        if captured.get("value"):
-            raw = captured["value"]
-            if isinstance(raw, bytes):
-                raw = raw.decode()
-            parsed = json.loads(raw)
-            self.assertIn("decision_id", parsed)
+        if captured.get("decision"):
+            decision = captured["decision"]
+            self.assertIn("decision_id", decision)
 
 
 class TestMetricsRegistry(unittest.TestCase):
 
     def test_registry_creates_counters(self):
-        from ai_engine.kafka.metrics_registry import CloudOSMetrics
-        m = CloudOSMetrics()
+        from ai_engine.kafka.metrics_registry import VeloxMetrics
+        m = VeloxMetrics()
         # Should not raise
         self.assertIsNotNone(m)
 
     def test_registry_has_decisions_counter(self):
-        from ai_engine.kafka.metrics_registry import CloudOSMetrics
-        m = CloudOSMetrics()
+        from ai_engine.kafka.metrics_registry import VeloxMetrics
+        m = VeloxMetrics()
         self.assertTrue(hasattr(m, "decisions_total") or hasattr(m, "decision_counter"),
                         "MetricsRegistry missing decisions counter")
 
     def test_registry_has_carbon_gauge(self):
-        from ai_engine.kafka.metrics_registry import CloudOSMetrics
-        m = CloudOSMetrics()
+        from ai_engine.kafka.metrics_registry import VeloxMetrics
+        m = VeloxMetrics()
         self.assertTrue(
             hasattr(m, "carbon_intensity") or hasattr(m, "carbon_gauge"),
             "MetricsRegistry missing carbon gauge"

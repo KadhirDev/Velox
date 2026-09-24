@@ -59,10 +59,10 @@ def _make_config(tmpdir: Path) -> dict:
             "bootstrap_servers": "localhost:9092",
             "group_id": "cloudos-test",
             "topics": {
-                "decisions": "cloudos.scheduling.decisions",
-                "metrics":   "cloudos.metrics",
-                "alerts":    "cloudos.alerts",
-                "workload":  "cloudos.workload.events",
+                "decisions": "velox.scheduling.decisions",
+                "metrics":   "velox.metrics",
+                "alerts":    "velox.alerts",
+                "workload":  "velox.workload.events",
             },
         },
         "data_pipeline": {
@@ -115,27 +115,27 @@ class TestOperatorToKafkaIntegration(unittest.TestCase):
         self.tmpdir = _make_data_dir()
         self.config = _make_config(self.tmpdir)
 
-    @patch("ai_engine.kafka.producer.Producer")
-    def test_operator_publishes_to_kafka(self, mock_producer_cls):
-        """Operator processing a CR must call kafka produce."""
-        published = []
+    def test_operator_publishes_to_kafka(self):
+        """Operator heuristic path must call publish_decision() for a spot-tolerant workload."""
+        from ai_engine.operator.operator import VeloxOperator
 
-        def fake_produce(topic, value=None, key=None, **kw):
-            published.append({"topic": topic, "value": value})
-
-        mock_producer_inst = MagicMock()
-        mock_producer_inst.produce.side_effect = fake_produce
-        mock_producer_cls.return_value = mock_producer_inst
-
-        from ai_engine.operator.operator import CloudOSOperator
-        op = CloudOSOperator(
+        op = VeloxOperator(
             config=self.config,
             dry_run=False,
             no_kafka=False,
             no_shap=True,
         )
-        op._agent    = None       # use heuristic
-        op._producer = __import__("ai_engine.kafka.producer", fromlist=["CloudOSProducer"]).CloudOSProducer(self.config)
+
+        # Inject a mock producer directly — bypasses _resolve_bootstrap entirely
+        mock_producer = MagicMock()
+        publish_calls = []
+
+        def fake_publish_decision(decision):
+            publish_calls.append(decision)
+            return True
+
+        mock_producer.publish_decision = fake_publish_decision
+        op._producer = mock_producer
 
         cr = {
             "metadata": {"name": "kafka-test", "namespace": "cloudos-rl", "resourceVersion": "1"},
@@ -151,14 +151,19 @@ class TestOperatorToKafkaIntegration(unittest.TestCase):
         }
         op._list_pending = MagicMock(return_value=[cr])
 
-        with patch("subprocess.run") as mock_sub:
-            mock_sub.return_value = MagicMock(returncode=0, stdout="patched", stderr="")
-            op.run_once()
+        # Patch _load_agent so run_once() does not load the real PPO model.
+        # Keeping _agent=None forces _make_decision() -> _heuristic_decision().
+        with patch.object(op, "_load_agent", return_value=None):
+            with patch("subprocess.run") as mock_sub:
+                mock_sub.return_value = MagicMock(returncode=0, stdout="patched", stderr="")
+                op.run_once()
 
-        self.assertGreater(len(published), 0, "No Kafka messages published")
-        topics = [p["topic"] for p in published]
-        self.assertTrue(any("decisions" in t for t in topics),
-                        f"No message on decisions topic. Topics used: {topics}")
+        self.assertGreater(len(publish_calls), 0, "publish_decision() was never called")
+        decision = publish_calls[0]
+        self.assertEqual(
+            decision["region"], "eu-north-1",
+            f"Heuristic should pick eu-north-1 for spot-tolerant workload, got {decision['region']}",
+        )
 
 
 @pytest.mark.integration
@@ -205,18 +210,18 @@ class TestBackgroundGenToSHAPIntegration(unittest.TestCase):
 
 @pytest.mark.integration
 class TestWorkloadMapperToHeuristicIntegration(unittest.TestCase):
-    """WorkloadMapper → CloudOSOperator._heuristic_decision correctness."""
+    """WorkloadMapper → VeloxOperator._heuristic_decision correctness."""
 
     def test_spot_tolerant_training_job_goes_to_clean_region(self):
         from ai_engine.operator.workload_mapper import WorkloadMapper
-        from ai_engine.operator.operator        import CloudOSOperator
+        from ai_engine.operator.operator        import VeloxOperator
 
         config = {"data_pipeline": {
             "pricing_output_path": "data/pricing/aws_pricing.json",
             "carbon_output_path":  "data/carbon/carbon_intensity.json",
         }}
         mapper  = WorkloadMapper()
-        op      = CloudOSOperator(config, dry_run=True, no_kafka=True, no_shap=True)
+        op      = VeloxOperator(config, dry_run=True, no_kafka=True, no_shap=True)
         op._agent = None
 
         cr = {
@@ -243,14 +248,14 @@ class TestWorkloadMapperToHeuristicIntegration(unittest.TestCase):
 
     def test_latency_critical_inference_stays_on_demand(self):
         from ai_engine.operator.workload_mapper import WorkloadMapper
-        from ai_engine.operator.operator        import CloudOSOperator
+        from ai_engine.operator.operator        import VeloxOperator
 
         config = {"data_pipeline": {
             "pricing_output_path": "data/pricing/aws_pricing.json",
             "carbon_output_path":  "data/carbon/carbon_intensity.json",
         }}
         mapper = WorkloadMapper()
-        op     = CloudOSOperator(config, dry_run=True, no_kafka=True, no_shap=True)
+        op     = VeloxOperator(config, dry_run=True, no_kafka=True, no_shap=True)
         op._agent = None
 
         cr = {

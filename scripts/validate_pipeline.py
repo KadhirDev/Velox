@@ -53,11 +53,11 @@ def submit_workload(base: str) -> dict:
 
 
 def check_prometheus_counter(prom: str, before: float) -> bool:
-    """Checks cloudos_decisions_total incremented after submission."""
+    """Checks velox_decisions_total incremented after submission."""
     try:
         r = requests.get(
             f"{prom}/api/v1/query",
-            params={"query": "sum(cloudos_decisions_total)"},
+            params={"query": "sum(velox_decisions_total)"},
             timeout=5,
         )
         results = r.json().get("data", {}).get("result", [])
@@ -77,7 +77,7 @@ def get_prom_counter(prom: str) -> float:
     try:
         r = requests.get(
             f"{prom}/api/v1/query",
-            params={"query": "sum(cloudos_decisions_total)"},
+            params={"query": "sum(velox_decisions_total)"},
             timeout=5,
         )
         results = r.json().get("data", {}).get("result", [])
@@ -107,7 +107,7 @@ def main():
     # Step 2: baseline counter
     print("[step 2]  Prometheus baseline counter ...")
     before = get_prom_counter(args.prom_url)
-    print(f"          cloudos_decisions_total before = {before:.0f}")
+    print(f"          velox_decisions_total before = {before:.0f}")
 
     # Step 3: submit workload
     print("[step 3]  Submitting workload to /api/v1/schedule ...")

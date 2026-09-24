@@ -12,7 +12,7 @@ Config section in settings.yaml:
 
   kafka:
     bootstrap_servers: localhost:9092
-    group_id: cloudos-consumers
+    group_id: velox-consumers
 
   bridge:
     poll_timeout_seconds: 1.0
@@ -37,12 +37,12 @@ logger = logging.getLogger(__name__)
 _DEFAULTS: Dict[str, Any] = {
     "kafka": {
         "bootstrap_servers": "localhost:9092",
-        "group_id": "cloudos-consumers",
+        "group_id": "velox-consumers",
         "topics": {
-            "decisions": "cloudos.scheduling.decisions",
-            "metrics": "cloudos.metrics",
-            "alerts": "cloudos.alerts",
-            "workload": "cloudos.workload.events",
+            "decisions": "velox.scheduling.decisions",
+            "metrics": "velox.metrics",
+            "alerts": "velox.alerts",
+            "workload": "velox.workload.events",
         },
     },
     "prometheus": {
@@ -87,10 +87,10 @@ class BridgeConfig:
         self.topics = kafka.get(
             "topics",
             {
-                "decisions": "cloudos.scheduling.decisions",
-                "metrics": "cloudos.metrics",
-                "alerts": "cloudos.alerts",
-                "workload": "cloudos.workload.events",
+                "decisions": "velox.scheduling.decisions",
+                "metrics": "velox.metrics",
+                "alerts": "velox.alerts",
+                "workload": "velox.workload.events",
             },
         )
         self.poll_timeout_seconds = float(bridge.get("poll_timeout_seconds", 1.0))
@@ -113,7 +113,7 @@ class BridgeConfig:
 
         # Compatibility aliases for older code
         self.kafka_bootstrap = self.bootstrap_servers
-        self.kafka_group_id = kafka.get("group_id", "cloudos-consumers")
+        self.kafka_group_id = kafka.get("group_id", "velox-consumers")
         self.poll_timeout = self.poll_timeout_seconds
         self.max_per_poll = self.max_messages_per_poll
         self.pipeline_push_interval = self.pipeline_metrics_push_interval

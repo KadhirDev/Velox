@@ -1,18 +1,18 @@
 """
-CloudOS-RL Kafka Consumer
-=========================
+Velox Kafka Consumer
+=======================
 
 Base callback consumer + optional standalone metrics consumer.
 
 Existing usage remains supported:
-    consumer = CloudOSConsumer(config, group_id="my-group", topics=["cloudos.alerts"])
-    consumer.on("cloudos.alerts", handle_alert)
+    consumer = VeloxConsumer(config, group_id="my-group", topics=["velox.alerts"])
+    consumer.on("velox.alerts", handle_alert)
     consumer.start()
 
 New standalone usage:
     python -m ai_engine.kafka.consumer
 
-Standalone mode consumes cloudos.scheduling.decisions and exposes metrics at:
+Standalone mode consumes velox.scheduling.decisions and exposes metrics at:
     http://localhost:9094/metrics
 """
 
@@ -53,7 +53,7 @@ _METRICS_PORT = int(os.environ.get("CONSUMER_METRICS_PORT", "9094"))
 _WINDOW_SIZE = 100
 
 
-class CloudOSConsumer:
+class VeloxConsumer:
     """
     Simple callback-based Kafka consumer.
     Each topic maps to one handler function via .on(topic, handler).
@@ -63,7 +63,7 @@ class CloudOSConsumer:
         kafka_cfg = config.get("kafka", {}) or {}
         servers = (
             os.environ.get("CLOUDOS_KAFKA_BOOTSTRAP", "").strip()
-            or kafka_cfg.get("bootstrap_servers", "192.168.49.1:9092")
+            or kafka_cfg.get("bootstrap_servers", "")
         )
 
         self._consumer = Consumer(
@@ -81,7 +81,7 @@ class CloudOSConsumer:
         self._running = False
         self._thread: Optional[threading.Thread] = None
 
-    def on(self, topic: str, handler: Callable[[Dict], None]) -> "CloudOSConsumer":
+    def on(self, topic: str, handler: Callable[[Dict], None]) -> "VeloxConsumer":
         """Register a handler for a topic. Returns self for chaining."""
         self._handlers[topic] = handler
         return self
@@ -96,7 +96,7 @@ class CloudOSConsumer:
             name=f"consumer-{'-'.join(self._topics[:2])}",
         )
         self._thread.start()
-        logger.info("CloudOSConsumer started — topics=%s", self._topics)
+        logger.info("VeloxConsumer started — topics=%s", self._topics)
 
     def stop(self) -> None:
         """Signal the consumer to stop and wait for it."""
@@ -104,7 +104,7 @@ class CloudOSConsumer:
         if self._thread:
             self._thread.join(timeout=8.0)
         self._consumer.close()
-        logger.info("CloudOSConsumer stopped.")
+        logger.info("VeloxConsumer stopped.")
 
     def _loop(self) -> None:
         while self._running:
@@ -141,9 +141,9 @@ class CloudOSConsumer:
                 time.sleep(1.0)
 
 
-class CloudOSMetricsConsumer:
+class VeloxMetricsConsumer:
     """
-    Standalone metrics consumer for cloudos.scheduling.decisions.
+    Standalone metrics consumer for velox.scheduling.decisions.
     Exposes rolling metrics on an HTTP endpoint for Prometheus scraping.
     """
 
@@ -153,15 +153,15 @@ class CloudOSMetricsConsumer:
 
         self._bootstrap = (
             os.environ.get("CLOUDOS_KAFKA_BOOTSTRAP", "").strip()
-            or kafka_cfg.get("bootstrap_servers", "192.168.49.1:9092")
+            or kafka_cfg.get("bootstrap_servers", "")
         )
-        self._topic = topics_cfg.get("decisions", "cloudos.scheduling.decisions")
+        self._topic = topics_cfg.get("decisions", "velox.scheduling.decisions")
         self._running = False
 
         self._consumer = Consumer(
             {
                 "bootstrap.servers": self._bootstrap,
-                "group.id": "cloudos-metrics-consumer",
+                "group.id": "velox-metrics-consumer",
                 "auto.offset.reset": "latest",
                 "enable.auto.commit": True,
                 "session.timeout.ms": 30_000,
@@ -185,27 +185,27 @@ class CloudOSMetricsConsumer:
         self._registry = CollectorRegistry()
         self._metrics = {
             "decisions_total": Counter(
-                "cloudos_consumer_decisions_total",
+                "velox_consumer_decisions_total",
                 "Total decisions consumed from Kafka",
                 registry=self._registry,
             ),
             "latency_avg": Gauge(
-                "cloudos_consumer_latency_ms_avg",
+                "velox_consumer_latency_ms_avg",
                 "Rolling average latency in milliseconds",
                 registry=self._registry,
             ),
             "cost_savings_avg": Gauge(
-                "cloudos_consumer_cost_savings_avg_pct",
+                "velox_consumer_cost_savings_avg_pct",
                 "Rolling average cost savings percentage",
                 registry=self._registry,
             ),
             "carbon_savings_avg": Gauge(
-                "cloudos_consumer_carbon_savings_avg_pct",
+                "velox_consumer_carbon_savings_avg_pct",
                 "Rolling average carbon savings percentage",
                 registry=self._registry,
             ),
             "by_cloud": Counter(
-                "cloudos_consumer_decisions_by_cloud_total",
+                "velox_consumer_decisions_by_cloud_total",
                 "Total decisions consumed by cloud provider",
                 ["cloud"],
                 registry=self._registry,
@@ -310,7 +310,7 @@ def main() -> None:
         format="%(asctime)s  %(name)-40s  %(levelname)-5s  %(message)s",
     )
 
-    consumer = CloudOSMetricsConsumer(_load_config())
+    consumer = VeloxMetricsConsumer(_load_config())
 
     def _shutdown(_sig, _frame) -> None:
         logger.info("Shutting down metrics consumer")

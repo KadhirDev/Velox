@@ -2,13 +2,13 @@
 # Lazy imports only — prevents import errors if confluent-kafka not installed
 
 def get_producer(config):
-    from ai_engine.kafka.producer import CloudOSProducer
-    return CloudOSProducer(config)
+    from ai_engine.kafka.producer import VeloxProducer
+    return VeloxProducer(config)
 
 
 def get_consumer(config, group_id, topics):
-    from ai_engine.kafka.consumer import CloudOSConsumer
-    return CloudOSConsumer(config, group_id, topics)
+    from ai_engine.kafka.consumer import VeloxConsumer
+    return VeloxConsumer(config, group_id, topics)
 
 
 def get_bridge(config=None):

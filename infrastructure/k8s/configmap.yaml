@@ -46,10 +46,10 @@ data:
       bootstrap_servers: "192.168.49.1:9092"
       group_id: cloudos-rl-k8s
       topics:
-        decisions:    cloudos.scheduling.decisions
-        metrics:      cloudos.metrics
-        alerts:       cloudos.alerts
-        workload:     cloudos.workload.events
+        decisions:    velox.scheduling.decisions
+        metrics:      velox.metrics
+        alerts:       velox.alerts
+        workload:     velox.workload.events
 
     prometheus:
       host: 0.0.0.0

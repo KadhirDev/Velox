@@ -36,10 +36,10 @@ def base_config() -> Dict:
             "bootstrap_servers": "localhost:9092",
             "group_id":          "cloudos-test",
             "topics": {
-                "decisions": "cloudos.scheduling.decisions",
-                "metrics":   "cloudos.metrics",
-                "alerts":    "cloudos.alerts",
-                "workload":  "cloudos.workload.events",
+                "decisions": "velox.scheduling.decisions",
+                "metrics":   "velox.metrics",
+                "alerts":    "velox.alerts",
+                "workload":  "velox.workload.events",
             },
         },
         "prometheus": {"host": "0.0.0.0", "port": 9090},
@@ -72,7 +72,7 @@ def base_config() -> Dict:
 @pytest.fixture(scope="session")
 def tmp_data_dir(tmp_path_factory) -> Path:
     """Session-scoped temp directory with realistic pipeline data files."""
-    base = tmp_path_factory.mktemp("cloudos_data")
+    base = tmp_path_factory.mktemp("velox_data")
     (base / "pricing").mkdir()
     (base / "carbon").mkdir()
     (base / "shap").mkdir()

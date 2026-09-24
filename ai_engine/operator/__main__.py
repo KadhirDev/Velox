@@ -1,6 +1,6 @@
 """
-CloudOS-RL Operator entrypoint
-================================
+Velox Operator entrypoint
+==============================
 Run with:
   python -m ai_engine.operator
   python -m ai_engine.operator --dry-run
@@ -35,10 +35,10 @@ def _load_config() -> dict:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="CloudOS-RL Kubernetes Operator — watches CloudWorkload CRs"
+        description="Velox Kubernetes Operator — watches CloudWorkload CRs"
     )
-    parser.add_argument("--namespace",     default="cloudos-rl",
-                        help="Kubernetes namespace to watch (default: cloudos-rl)")
+    parser.add_argument("--namespace",     default="velox",
+                        help="Kubernetes namespace to watch (default: velox)")
     parser.add_argument("--poll-interval", default=5, type=int,
                         help="Seconds between poll cycles (default: 5)")
     parser.add_argument("--dry-run",       action="store_true",
@@ -54,18 +54,18 @@ def main():
     args = parser.parse_args()
 
     _setup_logging(args.log_level)
-    log = logging.getLogger("cloudos.operator")
+    log = logging.getLogger("velox.operator")
 
     log.info("=" * 60)
-    log.info("  CloudOS-RL Operator")
+    log.info("  Velox Operator")
     log.info("  namespace=%s  dry_run=%s  no_kafka=%s  no_shap=%s",
              args.namespace, args.dry_run, args.no_kafka, args.no_shap)
     log.info("=" * 60)
 
     config = _load_config()
 
-    from ai_engine.operator.operator import CloudOSOperator
-    operator = CloudOSOperator(
+    from ai_engine.operator.operator import VeloxOperator
+    operator = VeloxOperator(
         config=config,
         dry_run=args.dry_run,
         no_kafka=args.no_kafka,

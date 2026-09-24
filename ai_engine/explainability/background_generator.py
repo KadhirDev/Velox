@@ -133,7 +133,7 @@ _STATIC_LATENCY: Dict[str, float] = {
     "eastus":         14.0, "westeurope":     87.0,
 }
 
-_CARBON_NORM  = 600.0   # normalisation divisor — matches CloudOSEnv
+_CARBON_NORM  = 600.0   # normalisation divisor — matches VeloxEnv
 _PRICING_NORM = 10.0
 _LATENCY_NORM = 1000.0
 

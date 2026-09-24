@@ -5,7 +5,7 @@ Transitions CloudWorkload phases beyond Scheduled.
 
 Phase state machine:
   Pending → Scheduling → Scheduled → Running → Completed
-                                   ↘ Failed
+                                    ↘ Failed
 
 Scheduled → Running:
   After a configurable delay (simulates actual cloud provisioning time).
@@ -35,7 +35,7 @@ class WorkloadLifecycleManager:
     Periodically checks Scheduled workloads and advances their phase.
     """
 
-    def __init__(self, namespace: str = "cloudos-rl", dry_run: bool = False):
+    def __init__(self, namespace: str = "velox", dry_run: bool = False):
         self._namespace = namespace
         self._dry_run   = dry_run
         self._scheduled_at: Dict[str, datetime] = {}

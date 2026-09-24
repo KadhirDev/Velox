@@ -8,7 +8,7 @@ from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback,
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 
-from ai_engine.environment.cloud_env import CloudOSEnv
+from ai_engine.environment.cloud_env import VeloxEnv
 from ai_engine.training.callbacks import MetricsCallback
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def _make_env(config: dict, rank: int):
     def _init():
-        env = CloudOSEnv(config)
+        env = VeloxEnv(config)
         env.reset(seed=rank)
         return Monitor(env)
     return _init
@@ -74,7 +74,7 @@ def train(config_path: str = "config/settings.yaml"):
         CheckpointCallback(
             save_freq=max(50_000 // n_envs, 1),
             save_path=str(save_dir / "checkpoints"),
-            name_prefix="cloudos_rl",
+            name_prefix="velox_rl",
         ),
         EvalCallback(
             eval_env,
@@ -90,7 +90,7 @@ def train(config_path: str = "config/settings.yaml"):
     logger.info("Training PPO for %d timesteps on %d envs", timesteps, n_envs)
     model.learn(total_timesteps=timesteps, callback=callbacks, progress_bar=True)
 
-    model.save(str(save_dir / "cloudos_rl_final"))
+    model.save(str(save_dir / "velox_rl_final"))
     train_env.save(str(save_dir / "vec_normalize.pkl"))
     logger.info("Training complete.")
     return model

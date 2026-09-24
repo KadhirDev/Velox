@@ -19,10 +19,10 @@ Tests:
   7.  StatusWriter   — dry_run logs without calling kubectl
   8.  StatusWriter   — set_scheduled builds correct patch body
   9.  StatusWriter   — set_failed writes correct phase
-  10. CloudOSOperator — run_once processes pending workloads (mocked kubectl)
-  11. CloudOSOperator — skips already-processed resourceVersions
-  12. CloudOSOperator — uses heuristic when agent returns None
-  13. CloudOSOperator — handles kubectl failure gracefully
+  10. VeloxOperator — run_once processes pending workloads (mocked kubectl)
+  11. VeloxOperator — skips already-processed resourceVersions
+  12. VeloxOperator — uses heuristic when agent returns None
+  13. VeloxOperator — handles kubectl failure gracefully
   14. Full pipeline  — CR → mapper → mock agent → status patch end-to-end
 
 Run:
@@ -253,13 +253,13 @@ class TestStatusWriter(unittest.TestCase):
         self.assertFalse(ok)
 
 
-# ── TestCloudOSOperator ───────────────────────────────────────────────────────
+# ── TestVeloxOperator ───────────────────────────────────────────────────────
 
-class TestCloudOSOperator(unittest.TestCase):
+class TestVeloxOperator(unittest.TestCase):
 
     def setUp(self):
-        from ai_engine.operator.operator import CloudOSOperator
-        self.operator = CloudOSOperator(
+        from ai_engine.operator.operator import VeloxOperator
+        self.operator = VeloxOperator(
             config=_TEST_CONFIG,
             dry_run=True,
             no_kafka=True,
@@ -364,7 +364,7 @@ class TestFullPipeline(unittest.TestCase):
         """Full pipeline: CR → WorkloadMapper → (mock agent) → StatusWriter dry_run."""
         from ai_engine.operator.workload_mapper import WorkloadMapper
         from ai_engine.operator.status_writer   import StatusWriter
-        from ai_engine.operator.operator        import CloudOSOperator
+        from ai_engine.operator.operator        import VeloxOperator
 
         cr        = _make_cr(
             name="e2e-job",
@@ -415,7 +415,7 @@ if __name__ == "__main__":
     suite  = unittest.TestSuite()
     suite.addTests(loader.loadTestsFromTestCase(TestWorkloadMapper))
     suite.addTests(loader.loadTestsFromTestCase(TestStatusWriter))
-    suite.addTests(loader.loadTestsFromTestCase(TestCloudOSOperator))
+    suite.addTests(loader.loadTestsFromTestCase(TestVeloxOperator))
     suite.addTests(loader.loadTestsFromTestCase(TestFullPipeline))
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)

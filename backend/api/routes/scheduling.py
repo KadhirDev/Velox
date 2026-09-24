@@ -22,7 +22,7 @@ import yaml
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 
-from ai_engine.operator.operator import CloudOSOperator
+from ai_engine.operator.operator import VeloxOperator
 from backend.api.models.schemas import (
     AgentStatusResponse,
     BatchSchedulingResponse,
@@ -176,12 +176,12 @@ def _to_scheduling_decision(
 
 def _heuristic_fallback_decision(request: WorkloadRequest) -> SchedulingDecision:
     """
-    Use CloudOSOperator heuristic decision path when the RL agent
+    Use VeloxOperator heuristic decision path when the RL agent
     is still loading, instead of returning HTTP 503.
     """
     config = _load_config()
 
-    op = CloudOSOperator(
+    op = VeloxOperator(
         config=config,
         dry_run=True,
         no_kafka=True,

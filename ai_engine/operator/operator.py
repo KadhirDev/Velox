@@ -1,12 +1,12 @@
 """
-CloudOS-RL Kubernetes Operator
-================================
+Velox Kubernetes Operator
+==============================
 Controller loop that watches CloudWorkload custom resources
 and drives the RL scheduling decision pipeline.
 
 Architecture:
   ┌─────────────────────────────────────────────────────┐
-  │  CloudOSOperator (main loop)                        │
+  │  VeloxOperator (main loop)                          │
   │                                                     │
   │  poll_loop()  ←──── runs every poll_interval_sec    │
   │      │                                              │
@@ -29,7 +29,7 @@ Operator modes:
 
 Compatible with:
   Module A — SchedulerAgent.decide() + SHAP explanation
-  Module D — KafkaProducer.publish_decision()
+  Module D — VeloxProducer.publish_decision()
   Module F — CloudWorkload CRD schema
 """
 
@@ -47,13 +47,13 @@ from ai_engine.operator.workload_mapper import WorkloadMapper
 logger = logging.getLogger(__name__)
 
 _DEFAULT_POLL_SEC = 5
-_DEFAULT_NAMESPACE = "cloudos-rl"
+_DEFAULT_NAMESPACE = "velox"
 _DECISION_TIMEOUT_MS = 500  # warn if decision takes longer
 
 
-class CloudOSOperator:
+class VeloxOperator:
     """
-    Kubernetes operator controller loop for CloudOS-RL.
+    Kubernetes operator controller loop for Velox.
 
     Watches CloudWorkload CRs in the configured namespace.
     For each workload in phase=Pending, calls the RL agent
@@ -87,7 +87,7 @@ class CloudOSOperator:
         self._seen_rv: Dict[str, str] = {}  # name -> resourceVersion
 
         logger.info(
-            "CloudOSOperator: namespace=%s poll=%ds dry_run=%s no_kafka=%s no_shap=%s",
+            "VeloxOperator: namespace=%s poll=%ds dry_run=%s no_kafka=%s no_shap=%s",
             namespace,
             poll_interval,
             dry_run,
@@ -104,19 +104,19 @@ class CloudOSOperator:
         Starts the operator controller loop.
         Blocks indefinitely. Use Ctrl+C to stop.
         """
-        logger.info("CloudOSOperator: loading agent ...")
+        logger.info("VeloxOperator: loading agent ...")
         self._agent = self._load_agent()
 
         if not self._no_kafka:
-            logger.info("CloudOSOperator: connecting Kafka producer ...")
+            logger.info("VeloxOperator: connecting Kafka producer ...")
             self._producer = self._load_producer()
 
         logger.info(
-            "CloudOSOperator: entering poll loop (every %ds) ...",
+            "VeloxOperator: entering poll loop (every %ds) ...",
             self._poll_interval,
         )
         logger.info(
-            "CloudOSOperator: watching namespace '%s' for CloudWorkloads ...",
+            "VeloxOperator: watching namespace '%s' for CloudWorkloads ...",
             self._namespace,
         )
 
@@ -127,10 +127,10 @@ class CloudOSOperator:
                 except KeyboardInterrupt:
                     raise
                 except Exception as exc:
-                    logger.error("CloudOSOperator: poll error: %s", exc, exc_info=True)
+                    logger.error("VeloxOperator: poll error: %s", exc, exc_info=True)
                 time.sleep(self._poll_interval)
         except KeyboardInterrupt:
-            logger.info("CloudOSOperator: received shutdown signal.")
+            logger.info("VeloxOperator: received shutdown signal.")
         finally:
             self._shutdown()
 
@@ -160,7 +160,7 @@ class CloudOSOperator:
         count = 0
 
         if pending:
-            logger.info("CloudOSOperator: found %d pending workload(s)", len(pending))
+            logger.info("VeloxOperator: found %d pending workload(s)", len(pending))
 
             for cr in pending:
                 name = cr.get("metadata", {}).get("name", "unknown")
@@ -186,9 +186,9 @@ class CloudOSOperator:
         Processes a single CloudWorkload CR through the full pipeline:
           1. Patch phase=Scheduling
           2. Map CR spec -> workload dict
-          3. RL agent decide()
-          4. Kafka publish
-          5. Patch phase=Scheduled with decision
+          2. RL agent decide()
+          3. Kafka publish
+          3. Patch phase=Scheduled with decision
 
         Returns True on success.
         """
@@ -196,14 +196,14 @@ class CloudOSOperator:
         name = meta.get("name", "unknown")
         namespace = meta.get("namespace", self._namespace)
 
-        logger.info("CloudOSOperator: processing workload '%s/%s'", namespace, name)
+        logger.info("VeloxOperator: processing workload '%s/%s'", namespace, name)
 
         self._writer.set_scheduling(name, namespace)
 
         workload = self._mapper.map(cr)
         if workload is None:
             reason = f"WorkloadMapper failed to parse spec for '{name}'"
-            logger.error("CloudOSOperator: %s", reason)
+            logger.error("VeloxOperator: %s", reason)
             self._writer.set_failed(name, namespace, reason)
             return False
 
@@ -212,14 +212,14 @@ class CloudOSOperator:
             decision = self._make_decision(workload)
         except Exception as exc:
             reason = f"RL agent error: {exc}"
-            logger.error("CloudOSOperator: %s", reason, exc_info=True)
+            logger.error("VeloxOperator: %s", reason, exc_info=True)
             self._writer.set_failed(name, namespace, reason)
             return False
 
         latency_ms = (time.perf_counter() - t0) * 1000
         if latency_ms > _DECISION_TIMEOUT_MS:
             logger.warning(
-                "CloudOSOperator: decision for '%s' took %.0fms (target <500ms)",
+                "VeloxOperator: decision for '%s' took %.0fms (target <500ms)",
                 name,
                 latency_ms,
             )
@@ -229,7 +229,7 @@ class CloudOSOperator:
         decision["workload_id"] = name
 
         logger.info(
-            "CloudOSOperator: decision for '%s' -> %s/%s %s (cost=%.4f/hr, savings=%.1f%%, %.0fms)",
+            "VeloxOperator: decision for '%s' -> %s/%s %s (cost=%.4f/hr, savings=%.1f%%, %.0fms)",
             name,
             decision.get("cloud"),
             decision.get("region"),
@@ -245,7 +245,7 @@ class CloudOSOperator:
         ok = self._writer.set_scheduled(name, namespace, decision)
         if not ok:
             logger.error(
-                "CloudOSOperator: status patch failed for '%s' (decision was still made)",
+                "VeloxOperator: status patch failed for '%s' (decision was still made)",
                 name,
             )
             return False
@@ -266,7 +266,7 @@ class CloudOSOperator:
             if decision:
                 return decision
             logger.warning(
-                "CloudOSOperator: agent returned None — using heuristic fallback"
+                "VeloxOperator: agent returned None — using heuristic fallback"
             )
 
         return self._heuristic_decision(workload)
@@ -316,12 +316,12 @@ class CloudOSOperator:
                 }
             )
             logger.debug(
-                "CloudOSOperator: published decision %s to Kafka",
+                "VeloxOperator: published decision %s to Kafka",
                 decision.get("decision_id"),
             )
         except Exception as exc:
             logger.warning(
-                "CloudOSOperator: Kafka publish failed (non-fatal): %s",
+                "VeloxOperator: Kafka publish failed (non-fatal): %s",
                 exc,
             )
 
@@ -352,7 +352,7 @@ class CloudOSOperator:
             )
             if result.returncode != 0:
                 logger.warning(
-                    "CloudOSOperator: kubectl get failed: %s",
+                    "VeloxOperator: kubectl get failed: %s",
                     result.stderr.strip()[:200],
                 )
                 return []
@@ -369,13 +369,13 @@ class CloudOSOperator:
             return pending
 
         except subprocess.TimeoutExpired:
-            logger.warning("CloudOSOperator: kubectl timed out")
+            logger.warning("VeloxOperator: kubectl timed out")
             return []
         except json.JSONDecodeError as exc:
-            logger.warning("CloudOSOperator: JSON parse error: %s", exc)
+            logger.warning("VeloxOperator: JSON parse error: %s", exc)
             return []
         except Exception as exc:
-            logger.error("CloudOSOperator: list_pending error: %s", exc)
+            logger.error("VeloxOperator: list_pending error: %s", exc)
             return []
 
     # -----------------------------------------------------------------------
@@ -395,16 +395,16 @@ class CloudOSOperator:
                 with_explainer=(not self._no_shap),
             )
             if agent:
-                logger.info("CloudOSOperator: SchedulerAgent loaded (PPO + SHAP mode)")
+                logger.info("VeloxOperator: SchedulerAgent loaded (PPO + SHAP mode)")
             else:
                 logger.warning(
-                    "CloudOSOperator: SchedulerAgent.load returned None "
+                    "VeloxOperator: SchedulerAgent.load returned None "
                     "(model not trained yet) — using heuristic fallback"
                 )
             return agent
         except Exception as exc:
             logger.warning(
-                "CloudOSOperator: agent load failed (%s) — using heuristic fallback",
+                "VeloxOperator: agent load failed (%s) — using heuristic fallback",
                 exc,
             )
             return None
@@ -412,14 +412,14 @@ class CloudOSOperator:
     def _load_producer(self):
         """Loads KafkaProducer. Returns None if Kafka not reachable."""
         try:
-            from ai_engine.kafka.producer import CloudOSProducer
+            from ai_engine.kafka.producer import VeloxProducer
 
-            producer = CloudOSProducer(self._config)
-            logger.info("CloudOSOperator: Kafka producer ready")
+            producer = VeloxProducer(self._config)
+            logger.info("VeloxOperator: Kafka producer ready")
             return producer
         except Exception as exc:
             logger.warning(
-                "CloudOSOperator: Kafka producer load failed (%s) — decisions will not be published",
+                "VeloxOperator: Kafka producer load failed (%s) — decisions will not be published",
                 exc,
             )
             return None
@@ -433,7 +433,7 @@ class CloudOSOperator:
                 pass
 
         logger.info(
-            "CloudOSOperator: shutdown — processed=%d errors=%d skipped=%d",
+            "VeloxOperator: shutdown — processed=%d errors=%d skipped=%d",
             self._stats["processed"],
             self._stats["errors"],
             self._stats["skipped"],

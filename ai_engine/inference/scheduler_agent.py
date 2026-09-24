@@ -229,9 +229,9 @@ class SchedulerAgent:
         vec_env = None
         if vp.exists():
             try:
-                from ai_engine.environment.cloud_env import CloudOSEnv
+                from ai_engine.environment.cloud_env import VeloxEnv
 
-                dummy = DummyVecEnv([lambda: CloudOSEnv(config)])
+                dummy = DummyVecEnv([lambda: VeloxEnv(config)])
 
                 cls._install_numpy_pickle_compat()
 

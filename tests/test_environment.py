@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from ai_engine.environment.cloud_env import CloudOSEnv
+from ai_engine.environment.cloud_env import VeloxEnv
 from ai_engine.environment.action_decoder import ActionDecoder
 
 CONFIG = {
@@ -15,7 +15,7 @@ CONFIG = {
 
 @pytest.fixture
 def env():
-    e = CloudOSEnv(CONFIG)
+    e = VeloxEnv(CONFIG)
     yield e
     e.close()
 

@@ -34,23 +34,23 @@ except ImportError:
 # PromQL queries to verify — sent to Prometheus query API (port 9091)
 _PANEL_QUERIES: List[Tuple[str, str]] = [
     ("Panel 1 — Decisions/min",
-     "sum(rate(cloudos_decisions_total[1m])) * 60"),
+     "sum(rate(velox_decisions_total[1m])) * 60"),
     ("Panel 2 — Cost savings p50",
-     "histogram_quantile(0.50, sum(rate(cloudos_cost_savings_ratio_bucket[5m])) by (le))"),
+     "histogram_quantile(0.50, sum(rate(velox_cost_savings_ratio_bucket[5m])) by (le))"),
     ("Panel 3 — Carbon savings p50",
-     "histogram_quantile(0.50, sum(rate(cloudos_carbon_savings_ratio_bucket[5m])) by (le))"),
+     "histogram_quantile(0.50, sum(rate(velox_carbon_savings_ratio_bucket[5m])) by (le))"),
     ("Panel 4 — Latency p95",
-     "histogram_quantile(0.95, sum(rate(cloudos_inference_latency_seconds_bucket[2m])) by (le, cloud))"),
+     "histogram_quantile(0.95, sum(rate(velox_inference_latency_seconds_bucket[2m])) by (le, cloud))"),
     ("Panel 5 — Carbon intensity",
-     "cloudos_carbon_intensity_gco2_per_kwh"),
+     "velox_carbon_intensity_gco2_per_kwh"),
     ("Panel 6 — RL reward p50",
-     "histogram_quantile(0.50, sum(rate(cloudos_rl_reward_bucket[5m])) by (le))"),
+     "histogram_quantile(0.50, sum(rate(velox_rl_reward_bucket[5m])) by (le))"),
     ("System  — Bridge up",
-     "cloudos_bridge_up"),
+     "velox_bridge_up"),
     ("System  — Pipeline pricing",
-     "cloudos_pipeline_pricing_fetches_total"),
+     "velox_pipeline_pricing_fetches_total"),
     ("System  — Pipeline carbon",
-     "cloudos_pipeline_carbon_fetches_total"),
+     "velox_pipeline_carbon_fetches_total"),
 ]
 
 
@@ -61,7 +61,7 @@ def check_bridge_exporter(host: str, port: int) -> bool:
     """
     Checks the Kafka-Prometheus bridge /metrics endpoint.
     This is a plain text metrics exporter — NOT a Prometheus query API.
-    Only checks /metrics is reachable and contains cloudos_ metrics.
+    Only checks /metrics is reachable and contains velox_ metrics.
     """
     url = f"http://{host}:{port}/metrics"
     print(f"\n[bridge]  Checking exporter at {url}")
@@ -75,17 +75,17 @@ def check_bridge_exporter(host: str, port: int) -> bool:
             return False
 
         text = r.text
-        cloudos_lines = [l for l in text.split("\n") if l.startswith("cloudos_") and not l.startswith("# ")]
-        metric_names  = set(l.split("{")[0].split(" ")[0] for l in cloudos_lines)
+        velox_lines = [l for l in text.split("\n") if l.startswith("velox_") and not l.startswith("# ")]
+        metric_names  = set(l.split("{")[0].split(" ")[0] for l in velox_lines)
 
-        print(f"[bridge]  ✅ Reachable — {len(metric_names)} unique cloudos_* metrics exposed")
+        print(f"[bridge]  ✅ Reachable — {len(metric_names)} unique velox_* metrics exposed")
 
         # Show key metrics present
         key_metrics = [
-            "cloudos_bridge_up",
-            "cloudos_carbon_intensity_gco2_per_kwh",
-            "cloudos_pricing_on_demand_usd_per_hr",
-            "cloudos_decisions_total",
+            "velox_bridge_up",
+            "velox_carbon_intensity_gco2_per_kwh",
+            "velox_pricing_on_demand_usd_per_hr",
+            "velox_decisions_total",
         ]
         for m in key_metrics:
             status = "✅" if m in metric_names else "⚠️  (not yet — needs bridge to run longer)"

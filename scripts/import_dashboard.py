@@ -27,7 +27,7 @@ try:
 except ImportError:
     raise ImportError("pip install requests")
 
-_DASHBOARD_PATH  = Path("infrastructure/grafana/cloudos_dashboard.json")
+_DASHBOARD_PATH  = Path("infrastructure/grafana/velox_dashboard.json")
 _DATASOURCE_PATH = Path("infrastructure/grafana/prometheus_datasource.json")
 
 

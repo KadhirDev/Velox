@@ -1,25 +1,25 @@
 """
 Kafka → Prometheus Bridge
-==========================
+=========================
 Consumes messages from three Kafka topics and exposes them
 as Prometheus metrics at http://0.0.0.0:9090/metrics.
 
 Topics consumed:
-  cloudos.scheduling.decisions  → cost, carbon, latency, cloud, region metrics
-  cloudos.metrics               → general system metrics
-  cloudos.alerts                → alert counters by kind
+  velox.scheduling.decisions  → cost, carbon, latency, cloud, region metrics
+  velox.metrics               → general system metrics
+  velox.alerts                → alert counters by kind
 
 Prometheus metrics exposed (full list in metrics_registry.py):
-  cloudos_decisions_total
-  cloudos_inference_latency_seconds
-  cloudos_cost_savings_ratio
-  cloudos_carbon_savings_ratio
-  cloudos_rl_reward
-  cloudos_alerts_total
-  cloudos_bridge_messages_consumed_total
-  cloudos_bridge_up
-  cloudos_carbon_intensity_gco2_per_kwh   (from pipeline data files)
-  cloudos_pricing_on_demand_usd_per_hr    (from pipeline data files)
+  velox_decisions_total
+  velox_inference_latency_seconds
+  velox_cost_savings_ratio
+  velox_carbon_savings_ratio
+  velox_rl_reward
+  velox_alerts_total
+  velox_bridge_messages_consumed_total
+  velox_bridge_up
+  velox_carbon_intensity_gco2_per_kwh   (from pipeline data files)
+  velox_pricing_on_demand_usd_per_hr    (from pipeline data files)
   ... (full list in metrics_registry.py)
 
 Thread model:
@@ -99,10 +99,10 @@ from ai_engine.kafka.metrics_registry import (
 logger = logging.getLogger(__name__)
 
 # Kafka topic names — must match producer.py TOPICS dict
-TOPIC_DECISIONS = "cloudos.scheduling.decisions"
-TOPIC_METRICS = "cloudos.metrics"
-TOPIC_ALERTS = "cloudos.alerts"
-TOPIC_WORKLOADS = "cloudos.workload.events"
+TOPIC_DECISIONS = "velox.scheduling.decisions"
+TOPIC_METRICS = "velox.metrics"
+TOPIC_ALERTS = "velox.alerts"
+TOPIC_WORKLOADS = "velox.workload.events"
 
 ALL_TOPICS = [TOPIC_DECISIONS, TOPIC_METRICS, TOPIC_ALERTS, TOPIC_WORKLOADS]
 
@@ -323,7 +323,7 @@ class KafkaPrometheusBridge:
 
     def _handle_decision(self, d: Dict[str, Any]) -> None:
         """
-        Handles cloudos.scheduling.decisions messages.
+        Handles velox.scheduling.decisions messages.
         Schema (produced by backend/api/routes/scheduling.py / producer.py):
           {
             decision_id, workload_id,
@@ -391,7 +391,7 @@ class KafkaPrometheusBridge:
 
     def _handle_metrics(self, d: Dict[str, Any]) -> None:
         """
-        Handles cloudos.metrics messages.
+        Handles velox.metrics messages.
         Schema (produced by kafka/producer.py publish_metrics):
           {
             pricing_fetches, carbon_fetches, cur_fetches,
@@ -416,7 +416,7 @@ class KafkaPrometheusBridge:
 
     def _handle_alert(self, d: Dict[str, Any]) -> None:
         """
-        Handles cloudos.alerts messages.
+        Handles velox.alerts messages.
         Schema (produced by kafka/producer.py publish_alert):
           {"kind": "cost_anomaly", "detail": {...}, "ts": float}
         """
@@ -426,7 +426,7 @@ class KafkaPrometheusBridge:
 
     def _handle_workload(self, d: Dict[str, Any]) -> None:
         """
-        Handles cloudos.workload.events messages.
+        Handles velox.workload.events messages.
         Schema: {"workload_id", "workload_type", "event_type", ...}
         """
         workload_type = d.get("workload_type", "unknown")

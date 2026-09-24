@@ -6,7 +6,7 @@ Merges raw outputs from all three fetchers and writes canonical JSON files.
 Files written:
   data/pricing/aws_pricing.json        <- PricingCache reads on TTL expiry
   data/pricing/aws_actual_costs.json   <- reward calibration, anomaly reference
-  data/carbon/carbon_intensity.json    <- CloudOSEnv reads per-episode
+  data/carbon/carbon_intensity.json    <- VeloxEnv reads per-episode
 
 DEFENSIVE BEHAVIOUR:
   If raw_pricing is empty (AWS API unavailable / IAM missing),

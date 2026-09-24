@@ -114,7 +114,7 @@ class WorkloadMapper:
         Example return:
             {
               "workload_id":             "my-ml-job",
-              "namespace":               "cloudos-rl",
+              "namespace":               "velox",
               "cpu_request_vcpu":        4.0,
               "memory_request_gb":       8.0,
               "gpu_count":               0,
@@ -134,7 +134,7 @@ class WorkloadMapper:
             spec = cr.get("spec",     {})
 
             workload_id = meta.get("name",      "unknown")
-            namespace   = meta.get("namespace", "cloudos-rl")
+            namespace   = meta.get("namespace", "velox")
             resources   = spec.get("resources", {})
             sla         = spec.get("sla",        {})
             constraints = spec.get("constraints", {})

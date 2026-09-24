@@ -76,11 +76,11 @@ def _load_carbon_from_file() -> Dict[str, float]:
         return {**_STATIC_CARBON, **pipeline_carbon}
 
     except (json.JSONDecodeError, OSError, KeyError, TypeError) as exc:
-        logger.warning("CloudOSEnv: carbon file read failed (%s) — using static values.", exc)
+        logger.warning("VeloxEnv: carbon file read failed (%s) — using static values.", exc)
         return dict(_STATIC_CARBON)
 
 
-class CloudOSEnv(gym.Env):
+class VeloxEnv(gym.Env):
     """
     CloudOS-RL Gymnasium training and evaluation environment.
     """
@@ -215,6 +215,6 @@ class CloudOSEnv(gym.Env):
             if mtime > self._carbon_mtime:
                 self._carbon       = _load_carbon_from_file()
                 self._carbon_mtime = mtime
-                logger.debug("CloudOSEnv: reloaded carbon from updated pipeline file.")
+                logger.debug("VeloxEnv: reloaded carbon from updated pipeline file.")
         except OSError:
             pass
